@@ -1,78 +1,22 @@
-import exceptions.AuthorException
-import localUtils.datasource.traits.AuthorLocalDB
-import models.UniAuthor
-import services.traits.AuthorService
-import zio._
-import zio.Console.{printLine, readLine}
-
-import java.io.IOException
-import scala.util.{Failure, Success, Try}
+import services.Program.{powerUpComputer, regularStatComputer}
+import zio.Console.printLine
+import zio.{Scope, ZEnv, ZIO, ZIOAppArgs, ZIOAppDefault}
 
 object Main extends ZIOAppDefault {
-  val safeGetAge: ZIO[Console, IOException, Int] = {
-    for {
-      _ <- printLine("Please enter an author age")
-      authorAgeStr <- readLine
-      authorAge = Try(authorAgeStr.toInt) match {
-        case Failure(_)     => 0
-        case Success(value) => value
+
+  //Sample data
+  val numbers = List(1d, 2d, 3d, 4d, 5d)
+
+  override def run: ZIO[ZEnv with ZIOAppArgs with Scope, Any, Any] = {
+    //Here we execute these effects to see their output
+    regularStatComputer(numbers)
+      .zip(powerUpComputer(numbers))
+      .tap {
+        case (regular, powerUp) =>
+          printLine(s"Regular $regular") *>
+            printLine("") *>
+            printLine(s"PowerUp $powerUp")
       }
-    } yield authorAge
+      .exitCode
   }
-
-  val addAuthorToLocalDB
-    : UniAuthor => ZIO[AuthorService, AuthorException, UniAuthor] = author =>
-    AuthorService(_.create(author))
-
-  val fetchAllAuthorsFromLocalDB: ZIO[AuthorService, Nothing, List[UniAuthor]] =
-    AuthorService(_.readAll())
-
-  val sampleAuthorFromLogProgram
-    : ZIO[AuthorService with Console, Exception, UniAuthor] =
-    for {
-      _ <- printLine("Please enter an author name")
-      authorName <- readLine
-      _ <- printLine("Please enter an author email")
-      authorMail <- readLine
-      _ <- printLine("Please enter an author country")
-      authorCountry <- readLine
-      authorAge <- safeGetAge
-      author = UniAuthor(authorName, authorMail, authorAge, authorCountry)
-      _ <- printLine(s"Data entered has been converted to ${author.toString}")
-    } yield author
-
-  val fetchByEmail: String => ZIO[AuthorService, AuthorException, UniAuthor] =
-    email => AuthorService(_.fetchByEmail(email))
-
-  val verifyProgram: ZIO[AuthorService with Console,
-                         Exception,
-                         (UniAuthor, UniAuthor, List[UniAuthor])] =
-    for {
-      author <- sampleAuthorFromLogProgram
-      saveAuthor <- addAuthorToLocalDB(author)
-      _ <- printLine(s"Author saved to the database ${saveAuthor.toString}")
-      fetchedAuthors <- fetchAllAuthorsFromLocalDB
-      _ <- printLine(
-        s"Authors fetched from the database ${fetchedAuthors.toString}"
-      )
-      fetchByEmail <- fetchByEmail(author.email)
-    } yield (saveAuthor, fetchByEmail, fetchedAuthors)
-
-  override def run: ZIO[ZEnv with ZIOAppArgs with Scope, Any, Any] =
-    //I have written this just to do a naive test that the local implementation we have written works just fine, although we have to persis this to a real DB
-    ZIO
-      .iterate(1)(_ <= 2)(
-        iterations =>
-          verifyProgram
-            .map {
-              case (savedAuthor, fetchByEmail, authorsFromDB) =>
-                assert(authorsFromDB.nonEmpty)
-                assert(authorsFromDB.size == iterations)
-                assert(savedAuthor == fetchByEmail)
-
-                iterations + 1
-          }
-      )
-      .provide(Console.live, AuthorService.local, AuthorLocalDB.localDB)
-
 }
