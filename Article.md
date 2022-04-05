@@ -234,7 +234,7 @@ If you create an effect that needs a layer, but it couldn't find it in its envir
 > This is the amount control you get, this is you Spring Booting with ZIO in a fancy and more powerful way. 
 
 True these snippets does not do so much, if you are curious to see an example, I have attached one to this write-up, 
-<a href = "https://github.com/chriseteka/bootiful-zio"> here </a>. <p>
+<a href = "https://github.com/lunatech-labs/bootiful-zio"> here </a>. <p>
 
 I have chosen not to compare their differences in mechanism, because I just don’t want to discuss here how spring 
 instantiates its classes. However, you can see how ZIO (or You instruct ZIO) to turn your implementation classes into 
